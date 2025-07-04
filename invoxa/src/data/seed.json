@@ -1,0 +1,10 @@
+[
+  {
+    "client": "Acme Corp",
+    "contact": "John Doe",
+    "address": "123 Main St, City",
+    "currency": "INR",
+    "amount": 1000,
+    "status": "pending"
+  }
+] 
