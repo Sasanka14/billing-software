@@ -1,69 +1,115 @@
-// Placeholder for invoices CRUD API
-// GET: List invoices
-// POST: Create invoice
-// PUT: Update invoice
-// DELETE: Delete invoice
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/db';
+import Invoice from '@/models/Invoice';
+import Client from '@/models/Client';
+import { verifyJwt } from '@/lib/auth';
+import mongoose from 'mongoose';
 
-import clientPromise from '@/lib/db';
-import { ObjectId } from 'mongodb';
-
-const DB_NAME = 'invoxa';
-const COLLECTION = 'invoices';
-
-export async function GET(request: Request) {
+// GET - Fetch all invoices for the current user
+export async function GET(req: NextRequest) {
   try {
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
-    const invoices = await db.collection(COLLECTION).find({}).toArray();
-    return Response.json(invoices);
-  } catch (err) {
-    return Response.json({ error: 'Failed to fetch invoices' }, { status: 500 });
+    await dbConnect();
+    // Remove user filter to show all invoices
+    const invoices = await Invoice.find({})
+      .populate('client', 'name email company')
+      .sort({ createdAt: -1 });
+    return NextResponse.json({ invoices });
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+// POST - Create a new invoice
+export async function POST(req: NextRequest) {
   try {
-    const data = await request.json();
-    // Ensure total is present or calculate it (amount - (amount * discount / 100))
-    let { amount, discount, total } = data;
-    amount = parseFloat(amount);
-    discount = parseFloat(discount);
-    if (typeof total === 'undefined') {
-      total = Math.max(0, amount - (amount * (discount / 100)));
+    await dbConnect();
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const invoiceData = { ...data, amount, discount, total };
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
-    const result = await db.collection(COLLECTION).insertOne(invoiceData);
-    return Response.json({ _id: result.insertedId, ...invoiceData });
-  } catch (err) {
-    return Response.json({ error: 'Failed to create invoice' }, { status: 500 });
-  }
-}
+    const token = authHeader.replace('Bearer ', '');
+    const payload = verifyJwt(token);
+    if (!payload || typeof payload !== 'object' || !('email' in payload)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-export async function PUT(request: Request) {
-  try {
-    const data = await request.json();
-    if (!data._id) return Response.json({ error: 'Missing _id' }, { status: 400 });
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
-    const { _id, ...update } = data;
-    await db.collection(COLLECTION).updateOne({ _id: new ObjectId(_id) }, { $set: update });
-    return Response.json({ _id, ...update });
-  } catch (err) {
-    return Response.json({ error: 'Failed to update invoice' }, { status: 500 });
-  }
-}
+    const {
+      clientName,
+      company,
+      email,
+      address,
+      phone,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      paymentTerms,
+      currency,
+      items,
+      advanceAmount,
+      advancePaid,
+      total
+    } = await req.json();
 
-export async function DELETE(request: Request) {
-  try {
-    const { _id } = await request.json();
-    if (!_id) return Response.json({ error: 'Missing _id' }, { status: 400 });
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
-    await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(_id) });
-    return Response.json({ success: true });
-  } catch (err) {
-    return Response.json({ error: 'Failed to delete invoice' }, { status: 500 });
+    // Create or find client
+    let client = await Client.findOne({ email });
+    
+    if (!client) {
+      client = await Client.create({
+        name: clientName,
+        email,
+        company,
+        address,
+        phone,
+        createdBy: new mongoose.Types.ObjectId(payload._id)
+      });
+    }
+
+    // Calculate totals from items
+    let calculatedSubtotal = 0;
+    let calculatedTotal = 0;
+    const itemsWithTotals = items.map(item => {
+      const subtotal = item.unitPrice * item.quantity;
+      const discount = subtotal * (item.discount / 100);
+      const total = subtotal - discount;
+      calculatedSubtotal += subtotal;
+      calculatedTotal += total;
+      return {
+        ...item,
+        total: total
+      };
+    });
+
+    // Create invoice
+    const invoice = await Invoice.create({
+      client: client._id,
+      items: itemsWithTotals,
+      subtotal: calculatedSubtotal,
+      total: calculatedTotal,
+      balance: calculatedTotal - (advanceAmount || 0),
+      status: 'draft',
+      dueDate: new Date(dueDate),
+      issuedDate: new Date(invoiceDate),
+      createdBy: new mongoose.Types.ObjectId(payload._id),
+      userId: new mongoose.Types.ObjectId(payload._id),
+      // Additional fields for advance payment
+      advanceAmount: advanceAmount || 0,
+      advancePaid: advancePaid || false,
+      currency,
+      paymentTerms,
+      invoiceNumber
+    });
+
+    const populatedInvoice = await Invoice.findById(invoice._id)
+      .populate('client', 'name email company');
+
+    return NextResponse.json({ 
+      success: true, 
+      invoice: populatedInvoice,
+      message: 'Invoice created successfully' 
+    });
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
   }
 } 
