@@ -12,9 +12,9 @@ const razorpay = new Razorpay({
 });
 
 // GET - Fetch a single invoice by ID
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   await dbConnect();
-  const { id } = context.params;
+  const id = req.nextUrl.pathname.split('/').pop();
   if (!id) {
     return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
   }
@@ -29,10 +29,10 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 }
 
 // DELETE - Delete an invoice by ID
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(req: NextRequest) {
   try {
     await dbConnect();
-    const { id } = context.params;
+    const id = req.nextUrl.pathname.split('/').pop();
     if (!id) {
       return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
     }
@@ -47,10 +47,11 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
   }
 }
 
-export async function POST(req: NextRequest, context: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   await dbConnect();
   const { type, amount } = await req.json(); // type: 'advance' | 'full'
-  const invoice = await Invoice.findById(context.params.id);
+  const id = req.nextUrl.pathname.split('/').pop();
+  const invoice = await Invoice.findById(id);
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
   }
