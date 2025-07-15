@@ -1,12 +1,30 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
   const [notLoggedIn, setNotLoggedIn] = useState(false);
   const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const clientsPerPage = 4;
+  const [clientFilter, setClientFilter] = useState('');
+
+  // Filtering logic
+  const filteredClients = clients.filter(client => {
+    return (
+      clientFilter.trim() === '' ||
+      client.name.toLowerCase().includes(clientFilter.trim().toLowerCase()) ||
+      client.email.toLowerCase().includes(clientFilter.trim().toLowerCase())
+    );
+  });
+  const totalPages = Math.ceil(filteredClients.length / clientsPerPage);
+  const paginatedClients = filteredClients.slice((currentPage - 1) * clientsPerPage, currentPage * clientsPerPage);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => { setCurrentPage(1); }, [clientFilter]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -31,6 +49,21 @@ export default function ClientsPage() {
     fetchClients();
   }, []);
 
+  async function deleteClient(id: string) {
+    if (!window.confirm('Are you sure you want to delete this client?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setClients(clients => clients.filter(c => c._id !== id && c.id !== id));
+      }
+    } catch {}
+  }
+
   if (!authChecked) return null;
   if (notLoggedIn) {
     return (
@@ -44,9 +77,9 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-2 sm:px-4 md:px-8">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+        <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-8 max-w-full md:max-w-4xl w-full">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
@@ -57,11 +90,22 @@ export default function ClientsPage() {
               <h1 className="text-3xl font-bold text-purple-700">Clients</h1>
             </div>
           </div>
-          {clients.length === 0 ? (
+          {/* Filter Bar */}
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Client Name or Email</label>
+            <input
+              type="text"
+              value={clientFilter}
+              onChange={e => setClientFilter(e.target.value)}
+              placeholder="Search by client name or email"
+              className="w-full border-2 border-gray-200 px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all"
+            />
+          </div>
+          {filteredClients.length === 0 ? (
             <div className="text-gray-500 text-lg text-center py-12">No clients found.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {clients.map(client => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+              {paginatedClients.map(client => (
                 <div key={client._id || client.id} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 shadow-lg border border-purple-100 flex flex-col gap-3">
                   <div className="flex items-center gap-4 mb-2">
                     <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
@@ -90,8 +134,34 @@ export default function ClientsPage() {
                     </svg>
                     <span>{client.address}</span>
                   </div>
+                  <button
+                    onClick={() => deleteClient(client._id || client.id)}
+                    className="mt-4 px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition self-end"
+                  >
+                    Delete
+                  </button>
                 </div>
               ))}
+            </div>
+          )}
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 py-6">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="font-semibold text-gray-700">Page {currentPage} of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>

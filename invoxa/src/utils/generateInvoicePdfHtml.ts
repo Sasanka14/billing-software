@@ -174,12 +174,6 @@ export function generateInvoicePdfHtml(invoice: PopulatedInvoice) {
               <h3>Payment Summary</h3>
               <div class="section-inner summary">
                 <p><strong>Total:</strong> ${invoice.currency} ${invoice.total.toFixed(2)}</p>
-                ${
-                  invoice.advanceAmount > 0
-                    ? `<p><strong>Advance Paid:</strong> ${invoice.currency} ${invoice.advanceAmount.toFixed(2)}</p>`
-                    : ''
-                }
-                <p><strong>Payment Terms:</strong> ${invoice.paymentTerms || 'Net 30'}</p>
               </div>
             </div>
 

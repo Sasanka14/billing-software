@@ -16,6 +16,10 @@ function generateInvoiceNumber() {
   return `INV-${ymd}-${rand}`;
 }
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function CreateInvoicePage() {
   const [clientName, setClientName] = useState("");
   const [company, setCompany] = useState("");
@@ -34,11 +38,15 @@ export default function CreateInvoicePage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [discount, setDiscount] = useState(0);
   const [advanceAmount, setAdvanceAmount] = useState(0);
   const [advancePaid, setAdvancePaid] = useState(false);
   const [advancePaymentLink, setAdvancePaymentLink] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [notLoggedIn, setNotLoggedIn] = useState(false);
+  const [advanceLink, setAdvanceLink] = useState("");
+  const [advanceReceived, setAdvanceReceived] = useState(false);
+  const remainingAmount = Math.max(total - advanceAmount, 0);
   const router = useRouter();
 
   useEffect(() => {
@@ -57,15 +65,20 @@ export default function CreateInvoicePage() {
   }, []);
 
   useEffect(() => {
-    // Calculate total
+    // Calculate total with only overall discount
     let sum = 0;
     for (const item of items) {
       const price = item.unitPrice * item.quantity;
-      const discount = price * (item.discount / 100);
-      sum += price - discount;
+      sum += price;
     }
-    setTotal(sum);
-  }, [items]);
+    const totalDiscount = sum * (discount / 100);
+    setTotal(sum - totalDiscount);
+  }, [items, discount]);
+
+  useEffect(() => {
+    // Set default advance amount to 20% of total
+    setAdvanceAmount(Math.ceil(total * 0.2));
+  }, [total]);
 
   function handleItemChange(idx: number, field: string, value: any) {
     setItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -79,19 +92,76 @@ export default function CreateInvoicePage() {
     setItems(items => items.filter((_, i) => i !== idx));
   }
 
+  function handleAdvanceAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = Number(e.target.value);
+    const min = Math.ceil(total * 0.2);
+    setAdvanceAmount(val < min ? min : val);
+  }
+
+  async function handleGenerateAdvanceLink() {
+    if (!email || !isValidEmail(email)) {
+      setError('Please enter a valid client email address.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      const res = await fetch('/api/invoices/send-advance-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName,
+          clientEmail: email,
+          items,
+          total,
+          discount,
+          advanceAmount,
+          remainingAmount,
+          invoiceNumber
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess('Advance payment link sent to client!');
+        setAdvanceLink(data.paymentLink);
+      } else {
+        setError(data.error || 'Failed to send advance payment link');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send advance payment link');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateRemainingInvoice() {
+    // Call backend to create a new invoice for the remaining amount
+    // Pass original total, discount, advance paid, and remaining due
+    // Example:
+    // const res = await fetch('/api/invoices/remaining', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    //   body: JSON.stringify({
+    //     clientName, company, email, address, phone, invoiceNumber, invoiceDate, dueDate, paymentTerms, currency, items, discount, total, advanceAmount, remainingAmount
+    //   })
+    // });
+    // const data = await res.json();
+    // if (res.ok) { /* show success, redirect, etc. */ }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccess("");
-    
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         setError("Not authenticated");
         return;
       }
-
+      const itemsWithTotal = items.map(item => ({ ...item, total: item.unitPrice * item.quantity }));
       const invoiceData = {
         clientName,
         company,
@@ -103,58 +173,33 @@ export default function CreateInvoicePage() {
         dueDate,
         paymentTerms,
         currency,
-        items,
+        items: itemsWithTotal,
+        discount,
+        total,
         advanceAmount,
-        advancePaid,
-        total
+        remainingAmount,
+        advancePaid: !!advanceReceived,
       };
-
-      const response = await fetch("/api/invoices", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(invoiceData),
+      // Only create remaining amount invoice
+      const remRes = await fetch('/api/invoices/remaining', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(invoiceData)
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create invoice");
+      const remData = await remRes.json();
+      if (!remRes.ok) {
+        throw new Error(remData.error || "Failed to create remaining invoice");
       }
-
-      setSuccess("Invoice created successfully!");
-      
-      // Reset form
-      setClientName("");
-      setCompany("");
-      setEmail("");
-      setAddress("");
-      setPhone("");
-      setInvoiceNumber(generateInvoiceNumber());
-      setInvoiceDate(new Date().toISOString().slice(0, 10));
-      setDueDate("");
-      setPaymentTerms("");
-      setCurrency("INR");
-      setItems([{ description: "", quantity: 1, unitPrice: 0, discount: 0 }]);
-      setAdvanceAmount(0);
-      setAdvancePaid(false);
-      
-      // Redirect to invoices list after a short delay
+      setSuccess("Remaining invoice created successfully!");
       setTimeout(() => {
         window.location.href = "/invoices";
       }, 1500);
-      
     } catch (err: any) {
       setError(err.message || "Failed to create invoice");
     } finally {
       setLoading(false);
     }
   }
-
-  // Calculate remaining payment
-  const remainingAmount = total - (advanceAmount || 0);
 
   if (!authChecked) return null;
   if (notLoggedIn) {
@@ -289,7 +334,6 @@ export default function CreateInvoicePage() {
                   <div className="col-span-6">Description</div>
                   <div className="col-span-2 text-center">Quantity</div>
                   <div className="col-span-2 text-center">Unit Price</div>
-                  <div className="col-span-2 text-center">Discount</div>
                   <div className="col-span-1"></div>
                 </div>
                 {items.map((item, idx) => (
@@ -302,9 +346,6 @@ export default function CreateInvoicePage() {
                     </div>
                     <div className="col-span-2">
                       <input type="number" min={0} step={0.01} placeholder="Price" value={item.unitPrice} onChange={e => handleItemChange(idx, "unitPrice", Number(e.target.value))} className="w-full border-2 border-gray-200 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all" required />
-                    </div>
-                    <div className="col-span-2">
-                      <input type="number" min={0} max={100} step={0.01} placeholder="%" value={item.discount} onChange={e => handleItemChange(idx, "discount", Number(e.target.value))} className="w-full border-2 border-gray-200 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all" />
                     </div>
                     <div className="col-span-1">
                       {items.length > 1 && (
@@ -320,48 +361,65 @@ export default function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Payment Summary Section */}
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-6 shadow-lg border border-orange-100">
-              <div className="flex items-center mb-6">
-                <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center mr-4">
+            {/* Summary Section */}
+            <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 via-pink-50 to-green-50 rounded-2xl shadow-lg border border-purple-100">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center mr-4">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-orange-700">Payment Summary</h2>
+                <h2 className="text-2xl font-bold text-purple-700">Payment Summary</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Advance Amount</label>
-                  <input type="number" min={0} step={0.01} placeholder="0.00" value={advanceAmount} onChange={e => setAdvanceAmount(Number(e.target.value))} className="w-full border-2 border-gray-200 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all" />
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Discount (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discount}
+                    onChange={e => setDiscount(Number(e.target.value))}
+                    className="w-32 border-2 border-gray-200 px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all"
+                  />
                 </div>
-                <div className="flex items-center justify-center">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" checked={advancePaid} onChange={e => setAdvancePaid(e.target.checked)} className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500" />
-                    <span className="text-sm font-semibold text-gray-700">Advance Paid</span>
-                  </label>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Total Amount</label>
+                  <div className="text-xl font-bold text-purple-700">{currency} {total.toFixed(2)}</div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Payment Link</label>
-                  <button type="button" className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:opacity-90 transition disabled:opacity-50" disabled>
-                    Pay Advance
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Advance Amount (min 20%)</label>
+                  <input
+                    type="number"
+                    min={Math.ceil(total * 0.2)}
+                    value={advanceAmount}
+                    onChange={handleAdvanceAmountChange}
+                    className="w-32 border-2 border-gray-200 px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAdvanceLink}
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:opacity-90 transition disabled:opacity-50"
+                  >
+                    Generate Advance Payment Link
                   </button>
+                  {advanceLink && (
+                    <div className="mt-2 text-xs text-green-700 break-all">
+                      Link: {advanceLink}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-                <div className="space-y-4 text-right">
-                  <div className="flex justify-between items-center text-lg">
-                    <span className="font-semibold text-gray-600">Advance Invoice:</span>
-                    <span className="font-bold text-orange-600">{currency} {advanceAmount ? advanceAmount.toFixed(2) : '0.00'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xl">
-                    <span className="font-semibold text-gray-600">Total Invoice:</span>
-                    <span className="font-bold text-purple-600">{currency} {total.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-lg">
-                    <span className="font-semibold text-gray-600">Remaining Payment:</span>
-                    <span className="font-bold text-green-600">{currency} {remainingAmount > 0 ? remainingAmount.toFixed(2) : '0.00'}</span>
-                  </div>
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mt-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Remaining Amount</label>
+                  <div className="text-xl font-bold text-green-700">{currency} {remainingAmount.toFixed(2)}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="advanceReceived" checked={advanceReceived} onChange={e => setAdvanceReceived(e.target.checked)} />
+                  <label htmlFor="advanceReceived" className="text-sm font-semibold text-gray-700">Advance Payment Received</label>
                 </div>
               </div>
             </div>

@@ -64,9 +64,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <main className="flex flex-col items-center justify-center p-8">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-2 sm:px-4 md:px-8">
+      <main className="flex flex-col items-center justify-center p-4 sm:p-8">
+        <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-8 max-w-full md:max-w-4xl w-full">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +76,7 @@ export default function DashboardPage() {
             </div>
             <h1 className="text-3xl font-bold text-purple-700">Dashboard</h1>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 mb-8">
             {/* Total Invoices */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 shadow-lg border border-blue-100 flex flex-col items-center">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-3">

@@ -98,8 +98,8 @@ export default function LoginPage() {
             </button>
             {error && <div className="text-red-600 text-sm">{error}</div>}
           </form>
-          <div className="mt-6 text-center">
-            <a href="/auth/register" className="text-purple-600 hover:underline">Don't have an account? Register</a>
+          <div className="mt-6 text-center text-gray-500 text-sm">
+            Need access? Please contact your administrator to request login credentials.
           </div>
         </div>
       </div>

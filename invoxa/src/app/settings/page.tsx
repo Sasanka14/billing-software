@@ -206,15 +206,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-2 sm:px-4 md:px-8">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+        <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-8 max-w-full md:max-w-4xl w-full">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-purple-700 mb-2">Settings</h1>
             <p className="text-gray-600">Manage your account settings and preferences</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
             {/* Profile Section */}
             <div className="space-y-6">
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 shadow-lg border border-purple-100">
