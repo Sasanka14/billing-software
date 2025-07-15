@@ -57,7 +57,10 @@ export async function PUT(req: NextRequest) {
   // Update email if provided
   if (email && email !== user.email) {
     const existingUser = await User.findOne({ email });
-    if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+    if (
+      existingUser &&
+      (existingUser._id as { toString(): string }).toString() !== (user._id as { toString(): string }).toString()
+    ) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409 });
     }
     updates.email = email;
