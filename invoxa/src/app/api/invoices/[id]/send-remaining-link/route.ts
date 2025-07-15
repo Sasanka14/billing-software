@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const clientEmail = typeof invoice.client === 'object' && invoice.client !== null && 'email' in invoice.client ? (invoice.client as any).email : '';
     const items = invoice.items || [];
     const total = invoice.total;
-    const discount = invoice.discount || 0;
+    const discount = (invoice as any).discount || 0;
     const advanceAmount = invoice.advanceAmount || 0;
     const remainingAmount = Math.max(total - advanceAmount, 0);
     const invoiceNumber = invoice.invoiceNumber;
