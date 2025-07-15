@@ -31,7 +31,8 @@ type PopulatedInvoice = {
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
-    const id = req.nextUrl.pathname.split('/').pop();
+    const segments = req.nextUrl.pathname.split('/');
+    const id = segments[segments.length - 2];
     const { type } = await req.json();
     const invoice = await Invoice.findOne({
       _id: id

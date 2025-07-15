@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
   const requestId = uuidv4();
   try {
     await dbConnect();
-    const id = req.nextUrl.pathname.split('/').pop();
+    const segments = req.nextUrl.pathname.split('/');
+    const id = segments[segments.length - 2];
     const invoice = await Invoice.findById(id).populate('client');
     if (!invoice) {
       return NextResponse.json({ error: { message: 'Invoice not found', code: 'INVOICE_NOT_FOUND', ref: requestId } }, { status: 404 });

@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect();
     // Extract id from the URL
-    const id = req.nextUrl.pathname.split('/').pop();
+    const segments = req.nextUrl.pathname.split('/');
+    const id = segments[segments.length - 2];
     const invoice = await Invoice.findOne({ _id: id })
       .populate('client', 'name email company address phone');
     if (!invoice) {
