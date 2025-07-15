@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db';
 import Client from '@/models/Client';
 import { verifyJwt } from '@/lib/auth';
 
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(req: NextRequest) {
   try {
     await dbConnect();
     const authHeader = req.headers.get('authorization');
@@ -15,7 +15,8 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
     if (!payload || typeof payload !== 'object' || !('email' in payload)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const { id } = context.params;
+    // Extract id from the URL
+    const id = req.nextUrl.pathname.split('/').pop();
     if (!id) {
       return NextResponse.json({ error: 'Client ID is required' }, { status: 400 });
     }
