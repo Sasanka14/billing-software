@@ -432,13 +432,13 @@ export default function SettingsPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Member Since:</span>
                     <span className="font-semibold text-green-700">
-                      {user ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                      {user ? new Date((user as any).createdAt).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Last Updated:</span>
                     <span className="font-semibold text-green-700">
-                      {user ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
+                      {user ? new Date((user as any).updatedAt).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
