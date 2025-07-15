@@ -5,10 +5,12 @@ import { verifyJwt } from '@/lib/auth';
 import { generateInvoicePdfHtml } from '@/utils/generateInvoicePdfHtml';
 import { generateInvoicePdfBuffer } from '@/utils/generateInvoicePdfBuffer';
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
-    const invoice = await Invoice.findOne({ _id: context.params.id })
+    // Extract id from the URL
+    const id = req.nextUrl.pathname.split('/').pop();
+    const invoice = await Invoice.findOne({ _id: id })
       .populate('client', 'name email company address phone');
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
