@@ -93,6 +93,9 @@ export async function PUT(req: NextRequest) {
     { new: true }
   ).select('-password');
 
+  if (!updatedUser) {
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+  }
   console.log('User updated successfully:', updatedUser._id);
 
   return NextResponse.json({ 
