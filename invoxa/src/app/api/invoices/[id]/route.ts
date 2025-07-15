@@ -64,14 +64,16 @@ export async function POST(req: NextRequest) {
     payAmount = invoice.total - (invoice.paidAmount || 0);
   }
   // Razorpay expects amount in paise
+  const clientName = typeof invoice.client === 'object' && invoice.client !== null && 'name' in invoice.client ? (invoice.client as any).name : '';
+  const clientEmail = typeof invoice.client === 'object' && invoice.client !== null && 'email' in invoice.client ? (invoice.client as any).email : '';
   const order = await razorpay.orders.create({
     amount: Math.round(payAmount * 100),
     currency: invoice.currency || 'INR',
     receipt: `invoice_${invoice._id}_${type}`,
     notes: {
       invoiceNumber: invoice.invoiceNumber,
-      clientName: invoice.client?.name,
-      clientEmail: invoice.client?.email,
+      clientName,
+      clientEmail,
       type,
     },
   });
