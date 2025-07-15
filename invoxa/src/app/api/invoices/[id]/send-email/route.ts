@@ -28,13 +28,13 @@ type PopulatedInvoice = {
   paymentTerms: string;
 };
 
-export async function POST(req: NextRequest, context: any) {
+export async function POST(req: NextRequest) {
   try {
     await dbConnect();
-    const { params } = context;
+    const id = req.nextUrl.pathname.split('/').pop();
     const { type } = await req.json();
     const invoice = await Invoice.findOne({
-      _id: params.id
+      _id: id
     }).populate('client', 'name email company address phone') as PopulatedInvoice | null;
 
     if (!invoice) {

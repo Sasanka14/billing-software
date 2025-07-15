@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Invoice from '@/models/Invoice';
 
-export async function POST(req: NextRequest, context: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   await dbConnect();
   const { status } = await req.json();
-  const invoice = await Invoice.findById(context.params.id);
+  const id = req.nextUrl.pathname.split('/').pop();
+  const invoice = await Invoice.findById(id);
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
   }

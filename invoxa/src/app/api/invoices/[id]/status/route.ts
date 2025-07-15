@@ -4,14 +4,14 @@ import Invoice from '@/models/Invoice';
 
 const VALID_STATUSES = ['draft', 'sent', 'advance_paid', 'paid', 'overdue'];
 
-export async function POST(req: NextRequest, context: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   await dbConnect();
   const { status } = await req.json();
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: 'Invalid status value.' }, { status: 400 });
   }
-  const params = await context.params;
-  const invoice = await Invoice.findById(params.id);
+  const id = req.nextUrl.pathname.split('/').pop();
+  const invoice = await Invoice.findById(id);
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
   }

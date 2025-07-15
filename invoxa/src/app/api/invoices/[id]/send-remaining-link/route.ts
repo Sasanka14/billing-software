@@ -10,12 +10,12 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-export async function POST(req: NextRequest, context: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   const requestId = uuidv4();
   try {
     await dbConnect();
-    const params = await context.params;
-    const invoice = await Invoice.findById(params.id).populate('client');
+    const id = req.nextUrl.pathname.split('/').pop();
+    const invoice = await Invoice.findById(id).populate('client');
     if (!invoice) {
       return NextResponse.json({ error: { message: 'Invoice not found', code: 'INVOICE_NOT_FOUND', ref: requestId } }, { status: 404 });
     }
