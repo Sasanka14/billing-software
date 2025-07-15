@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
     if (!invoice) {
       return NextResponse.json({ error: { message: 'Invoice not found', code: 'INVOICE_NOT_FOUND', ref: requestId } }, { status: 404 });
     }
-    const clientName = invoice.client?.name || '';
-    const clientEmail = invoice.client?.email || '';
+    const clientName = typeof invoice.client === 'object' && invoice.client !== null && 'name' in invoice.client ? (invoice.client as any).name : '';
+    const clientEmail = typeof invoice.client === 'object' && invoice.client !== null && 'email' in invoice.client ? (invoice.client as any).email : '';
     const items = invoice.items || [];
     const total = invoice.total;
     const discount = invoice.discount || 0;
