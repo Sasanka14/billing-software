@@ -1,12 +1,11 @@
-import chromium from 'chrome-aws-lambda';
+import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 
 export async function generateInvoicePdfBuffer(html: string) {
   const browser = await puppeteer.launch({
     args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
+    executablePath: await chromium.executablePath(),
+    headless: true,
   });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0' });
