@@ -5,7 +5,8 @@ import Invoice from '@/models/Invoice';
 export async function POST(req: NextRequest) {
   await dbConnect();
   const { status } = await req.json();
-  const id = req.nextUrl.pathname.split('/').pop();
+  const segments = req.nextUrl.pathname.split('/');
+  const id = segments[segments.length - 2];
   const invoice = await Invoice.findById(id);
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });

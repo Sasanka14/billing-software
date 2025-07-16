@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: 'Invalid status value.' }, { status: 400 });
   }
-  const id = req.nextUrl.pathname.split('/').pop();
+  const segments = req.nextUrl.pathname.split('/');
+  const id = segments[segments.length - 2];
   const invoice = await Invoice.findById(id);
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
